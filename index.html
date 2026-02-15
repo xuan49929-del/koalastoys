@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>跨年烟花 - 祝考拉</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font-size: 100%;
+            font: inherit;
+            vertical-align: baseline;
+            user-select: none;
+        }
+
+        body {
+            line-height: 1;
+            overflow: hidden;
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stage-container {
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .canvas-container canvas {
+            position: absolute;
+            mix-blend-mode: lighten;
+            transform: translateZ(0);
+        }
+
+        .hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .remove {
+            display: none !important;
+        }
+        .canvas {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          z-index: 9999;
+          pointer-events: none; /* 让点击穿透，不影响背景烟花互动 */
+        }
+
+        /* --- 开场页面样式 --- */
+        #intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 25px; /* 按钮之间的间距 */
+            background-color: rgba(0, 0, 0, 0.15); 
+            backdrop-filter: blur(6px); 
+            -webkit-backdrop-filter: blur(6px);
+            transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 按钮组样式 */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* 全屏按钮样式 */
+        #fullscreen-btn {
+            appearance: none;
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 30px;
+            font-size: 16px;
+            color: #fff;
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s;
+            display: block; /* 初始显示 */
+        }
+        #fullscreen-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* 开始按钮样式 - 新年红金风格 */
+        #start-btn {
+            appearance: none;
+            outline: none;
+            /* 初始禁用状态颜色 */
+            background: #444; 
+            border: none;
+            padding: 20px 60px; /* 变大 */
+            font-size: 24px;   /* 字号变大 */
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            border-radius: 980px;
+            cursor: not-allowed; /* 初始不可点 */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+            pointer-events: none; /* 物理禁用 */
+        }
+
+        /* 激活状态的开始按钮（通过JS添加 class） */
+        #start-btn.active {
+            background: linear-gradient(135deg, #d60000 0%, #ff4d4d 100%); /* 新年红 */
+            color: #fff;
+            cursor: pointer;
+            pointer-events: auto;
+            border: 2px solid #ffcc00; /* 金边 */
+            box-shadow: 0 0 20px rgba(255, 0, 67, 0.6), inset 0 0 10px rgba(255, 204, 0, 0.3);
+            animation: pulse-glow 2s infinite;
+        }
+
+        #start-btn.active:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px rgba(255, 0, 67, 0.9), inset 0 0 20px rgba(255, 204, 0, 0.6);
+            background: linear-gradient(135deg, #f00000 0%, #ff6666 100%);
+        }
+
+        #start-btn.active:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 20px rgba(255, 0, 67, 0.6); }
+            50% { box-shadow: 0 0 35px rgba(255, 0, 67, 0.9); }
+            100% { box-shadow: 0 0 20px rgba(255, 0, 67, 0.6); }
+        }
+
+        /* 底部签名 */
+        .footer-text {
+            position: absolute;
+            bottom: 40px;
+            font-size: 16px; /* 调大 */
+            color: rgba(255, 255, 255, 0.6); /* 稍微调亮 */
+            font-weight: 400;
+            letter-spacing: 1px;
+            font-family: "SF Mono", "Menlo", monospace;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- 新增：背景音乐 -->
+    <!-- 注意：autoplay 属性尝试自动播放，但在大部分现代浏览器中需要用户交互 -->
+    <audio id="bgm" src="bgm.mp3" autoplay loop preload="auto" style="display:none;"></audio>
+
+    <!-- 开场遮罩层 -->
+    <div id="intro-overlay">
+        <div class="btn-group">
+            <button id="start-btn">开启新年烟花</button>
+            <button id="fullscreen-btn">全屏沉浸体验</button>
+        </div>
+        <div class="footer-text">by Liang Runxuan × Gemini</div>
+    </div>
+
+    <!-- 文字动画 Canvas -->
+    <canvas class="canvas"></canvas>
+
+    <!-- 烟花背景容器 -->
+    <div class="container">
+        <div class="loading-init">
+            <div class="loading-init__status">加载中...</div>
+        </div>
+        <div class="stage-container remove">
+            <div class="canvas-container">
+                <canvas id="trails-canvas"></canvas>
+                <canvas id="main-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 烟花核心脚本 -->
+    <script>
+        (function(global) {
+            'use strict';
+            var key = { fullscreenEnabled: 0, fullscreenElement: 1, requestFullscreen: 2, exitFullscreen: 3, fullscreenchange: 4, fullscreenerror: 5 };
+            var webkit = ['webkitFullscreenEnabled', 'webkitFullscreenElement', 'webkitRequestFullscreen', 'webkitExitFullscreen', 'webkitfullscreenchange', 'webkitfullscreenerror'];
+            var moz = ['mozFullScreenEnabled', 'mozFullScreenElement', 'mozRequestFullScreen', 'mozCancelFullScreen', 'mozfullscreenchange', 'mozfullscreenerror'];
+            var ms = ['msFullscreenEnabled', 'msFullscreenElement', 'msRequestFullscreen', 'msExitFullscreen', 'MSFullscreenChange', 'MSFullscreenError'];
+            var doc = typeof window !== 'undefined' && typeof window.document !== 'undefined' ? window.document : {};
+            var vendor = 'fullscreenEnabled' in doc && Object.keys(key) || webkit[0] in doc && webkit || moz[0] in doc && moz || ms[0] in doc && ms || [];
+            var fscreen = {
+                requestFullscreen: function requestFullscreen(element) { return element[vendor[key.requestFullscreen]](); },
+                get exitFullscreen() { return doc[vendor[key.exitFullscreen]].bind(doc); },
+                addEventListener: function addEventListener(type, handler, options) { return doc.addEventListener(vendor[key[type]], handler, options); },
+                removeEventListener: function removeEventListener(type, handler) { return doc.removeEventListener(vendor[key[type]], handler); },
+                get fullscreenEnabled() { return Boolean(doc[vendor[key.fullscreenEnabled]]); },
+                get fullscreenElement() { return doc[vendor[key.fullscreenElement]]; }
+            };
+            global.fscreen = fscreen;
+        })(window);
+
+        const Ticker = (function TickerFactory(window) {
+            'use strict';
+            const Ticker = {};
+            let started = false;
+            let lastTimestamp = 0;
+            let listeners = [];
+            Ticker.addListener = function addListener(callback) {
+                if (typeof callback !== 'function') throw ('Ticker.addListener() requires a function reference passed for a callback.');
+                listeners.push(callback);
+                if (!started) { started = true; queueFrame(); }
+            };
+            function queueFrame() {
+                if (window.requestAnimationFrame) { requestAnimationFrame(frameHandler); } else { webkitRequestAnimationFrame(frameHandler); }
+            }
+            function frameHandler(timestamp) {
+                let frameTime = timestamp - lastTimestamp;
+                lastTimestamp = timestamp;
+                if (frameTime < 0) frameTime = 17;
+                else if (frameTime > 68) frameTime = 68;
+                listeners.forEach(listener => listener.call(window, frameTime, frameTime / 16.6667));
+                queueFrame();
+            }
+            return Ticker;
+        })(window);
+
+        const Stage = (function StageFactory(window, document, Ticker) {
+            'use strict';
+            let lastTouchTimestamp = 0;
+            function Stage(canvas) {
+                if (typeof canvas === 'string') canvas = document.getElementById(canvas);
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.canvas.style.touchAction = 'none';
+                this.speed = 1;
+                this.dpr = 1;
+                this.width = canvas.width;
+                this.height = canvas.height;
+                this.naturalWidth = this.width * this.dpr;
+                this.naturalHeight = this.height * this.dpr;
+                if (this.width !== this.naturalWidth) {
+                    this.canvas.width = this.naturalWidth;
+                    this.canvas.height = this.naturalHeight;
+                    this.canvas.style.width = this.width + 'px';
+                    this.canvas.style.height = this.height + 'px';
+                }
+                Stage.stages.push(this);
+                this._listeners = { resize: [], pointerstart: [], pointermove: [], pointerend: [], lastPointerPos: { x: 0, y: 0 } };
+            }
+            Stage.stages = [];
+            Stage.prototype.addEventListener = function addEventListener(event, handler) {
+                if (event === 'ticker') { Ticker.addListener(handler); } else { this._listeners[event].push(handler); }
+            };
+            Stage.prototype.dispatchEvent = function dispatchEvent(event, val) {
+                const listeners = this._listeners[event];
+                if (listeners) { listeners.forEach(listener => listener.call(this, val)); }
+            };
+            Stage.prototype.resize = function resize(w, h) {
+                this.width = w; this.height = h;
+                this.naturalWidth = w * this.dpr; this.naturalHeight = h * this.dpr;
+                this.canvas.width = this.naturalWidth; this.canvas.height = this.naturalHeight;
+                this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
+                this.dispatchEvent('resize');
+            };
+            Stage.windowToCanvas = function windowToCanvas(canvas, x, y) {
+                const bbox = canvas.getBoundingClientRect();
+                return { x: (x - bbox.left) * (canvas.width / bbox.width), y: (y - bbox.top) * (canvas.height / bbox.height) };
+            };
+            Stage.mouseHandler = function mouseHandler(evt) {
+                if (Date.now() - lastTouchTimestamp < 500) return;
+                let type = 'start';
+                if (evt.type === 'mousemove') type = 'move';
+                else if (evt.type === 'mouseup') type = 'end';
+                Stage.stages.forEach(stage => {
+                    const pos = Stage.windowToCanvas(stage.canvas, evt.clientX, evt.clientY);
+                    stage.pointerEvent(type, pos.x / stage.dpr, pos.y / stage.dpr);
+                });
+            };
+            Stage.touchHandler = function touchHandler(evt) {
+                lastTouchTimestamp = Date.now();
+                let type = 'start';
+                if (evt.type === 'touchmove') type = 'move';
+                else if (evt.type === 'touchend') type = 'end';
+                Stage.stages.forEach(stage => {
+                    for (let touch of Array.from(evt.changedTouches)) {
+                        let pos;
+                        if (type !== 'end') {
+                            pos = Stage.windowToCanvas(stage.canvas, touch.clientX, touch.clientY);
+                            stage._listeners.lastPointerPos = pos;
+                            if (type === 'start') stage.pointerEvent('move', pos.x / stage.dpr, pos.y / stage.dpr);
+                        } else { pos = stage._listeners.lastPointerPos; }
+                        stage.pointerEvent(type, pos.x / stage.dpr, pos.y / stage.dpr);
+                    }
+                });
+            };
+            Stage.prototype.pointerEvent = function pointerEvent(type, x, y) {
+                const evt = { type: type, x: x, y: y };
+                evt.onCanvas = (x >= 0 && x <= this.width && y >= 0 && y <= this.height);
+                this.dispatchEvent('pointer' + type, evt);
+            };
+            document.addEventListener('mousedown', Stage.mouseHandler);
+            document.addEventListener('mousemove', Stage.mouseHandler);
+            document.addEventListener('mouseup', Stage.mouseHandler);
+            document.addEventListener('touchstart', Stage.touchHandler);
+            document.addEventListener('touchmove', Stage.touchHandler);
+            document.addEventListener('touchend', Stage.touchHandler);
+            return Stage;
+        })(window, document, Ticker);
+
+        const MyMath = (function MyMathFactory(Math) {
+            const MyMath = {};
+            MyMath.toDeg = 180 / Math.PI; MyMath.toRad = Math.PI / 180;
+            MyMath.halfPI = Math.PI / 2; MyMath.twoPI = Math.PI * 2;
+            MyMath.dist = (width, height) => Math.sqrt(width * width + height * height);
+            MyMath.pointDist = (x1, y1, x2, y2) => { const distX = x2 - x1; const distY = y2 - y1; return Math.sqrt(distX * distX + distY * distY); };
+            MyMath.angle = (width, height) => (MyMath.halfPI + Math.atan2(height, width));
+            MyMath.pointAngle = (x1, y1, x2, y2) => (MyMath.halfPI + Math.atan2(y2 - y1, x2 - x1));
+            MyMath.splitVector = (speed, angle) => ({ x: Math.sin(angle) * speed, y: -Math.cos(angle) * speed });
+            MyMath.random = (min, max) => Math.random() * (max - min) + min;
+            MyMath.randomInt = (min, max) => ((Math.random() * (max - min + 1)) | 0) + min;
+            MyMath.randomChoice = function randomChoice(choices) {
+                if (arguments.length === 1 && Array.isArray(choices)) return choices[(Math.random() * choices.length) | 0];
+                return arguments[(Math.random() * arguments.length) | 0];
+            };
+            MyMath.clamp = function clamp(num, min, max) { return Math.min(Math.max(num, min), max); };
+            return MyMath;
+        })(Math);
+    </script>
+    
+    <script>
+        'use strict';
+        console.clear();
+        
+        const IS_MOBILE = window.innerWidth <= 640;
+        const IS_DESKTOP = window.innerWidth > 800;
+        const IS_HEADER = IS_DESKTOP && window.innerHeight < 300;
+        const IS_HIGH_END_DEVICE = (() => {
+            const hwConcurrency = navigator.hardwareConcurrency;
+            if (!hwConcurrency) return false;
+            const minCount = window.innerWidth <= 1024 ? 4 : 8;
+            return hwConcurrency >= minCount;
+        })();
+        const MAX_WIDTH = 7680;
+        const MAX_HEIGHT = 4320;
+        const GRAVITY = 0.9;
+        let simSpeed = 1;
+
+        function getDefaultScaleFactor() {
+            if (IS_MOBILE) return 0.9;
+            if (IS_HEADER) return 0.75;
+            return 1;
+        }
+
+        let stageW, stageH;
+        let quality = 1;
+        let isLowQuality = false;
+        let isNormalQuality = true;
+        let isHighQuality = false;
+
+        const QUALITY_LOW = 1;
+        const QUALITY_NORMAL = 2;
+        const QUALITY_HIGH = 3;
+        const SKY_LIGHT_NONE = 0;
+        const SKY_LIGHT_DIM = 1;
+        const SKY_LIGHT_NORMAL = 2;
+
+        const COLOR = { Red: '#ff0043', Green: '#14fc56', Blue: '#1e7fff', Purple: '#e60aff', Gold: '#ffbf36', White: '#ffffff' };
+        const INVISIBLE = '_INVISIBLE_';
+        const PI_2 = Math.PI * 2;
+        const PI_HALF = Math.PI * 0.5;
+
+        const trailsStage = new Stage('trails-canvas');
+        const mainStage = new Stage('main-canvas');
+        const stages = [trailsStage, mainStage];
+
+        const store = {
+            _listeners: new Set(),
+            _dispatch(prevState) { this._listeners.forEach(listener => listener(this.state, prevState)); },
+            state: {
+                paused: true, soundEnabled: false, menuOpen: false, openHelpTopic: null, fullscreen: false,
+                config: {
+                    quality: String(IS_HIGH_END_DEVICE ? QUALITY_HIGH : QUALITY_NORMAL),
+                    shell: 'Random',
+                    size: IS_DESKTOP ? '3' : IS_HEADER ? '1.2' : '2',
+                    autoLaunch: true,
+                    finale: false,
+                    skyLighting: SKY_LIGHT_NORMAL + '',
+                    hideControls: IS_HEADER,
+                    longExposure: false,
+                    scaleFactor: getDefaultScaleFactor()
+                }
+            },
+            setState(nextState) {
+                const prevState = this.state;
+                this.state = Object.assign({}, this.state, nextState);
+                this._dispatch(prevState);
+            },
+            subscribe(listener) { this._listeners.add(listener); return () => this._listeners.delete(listener); }
+        };
+
+        function togglePause(toggle) {
+            const paused = store.state.paused;
+            let newValue;
+            if (typeof toggle === 'boolean') { newValue = toggle; } else { newValue = !paused; }
+            if (paused !== newValue) { store.setState({ paused: newValue }); }
+        }
+
+        const isRunning = (state=store.state) => !state.paused && !state.menuOpen;
+        const qualitySelector = () => +store.state.config.quality;
+        const shellNameSelector = () => store.state.config.shell;
+        const shellSizeSelector = () => +store.state.config.size;
+        const finaleSelector = () => store.state.config.finale;
+        const skyLightingSelector = () => +store.state.config.skyLighting;
+        const scaleFactorSelector = () => store.state.config.scaleFactor;
+
+        function configDidUpdate() {
+            const config = store.state.config;
+            quality = qualitySelector();
+            isLowQuality = quality === QUALITY_LOW;
+            isNormalQuality = quality === QUALITY_NORMAL;
+            isHighQuality = quality === QUALITY_HIGH;
+            if (skyLightingSelector() === SKY_LIGHT_NONE) { document.querySelector('.canvas-container').style.backgroundColor = '#000'; }
+            Spark.drawWidth = quality === QUALITY_HIGH ? 0.75 : 1;
+        }
+
+        const COLOR_NAMES = Object.keys(COLOR);
+        const COLOR_CODES = COLOR_NAMES.map(colorName => COLOR[colorName]);
+        const COLOR_CODES_W_INVIS = [...COLOR_CODES, INVISIBLE];
+        const COLOR_CODE_INDEXES = COLOR_CODES_W_INVIS.reduce((obj, code, i) => { obj[code] = i; return obj; }, {});
+        const COLOR_TUPLES = {};
+        COLOR_CODES.forEach(hex => {
+            COLOR_TUPLES[hex] = { r: parseInt(hex.substr(1, 2), 16), g: parseInt(hex.substr(3, 2), 16), b: parseInt(hex.substr(5, 2), 16) };
+        });
+
+        function randomColorSimple() { return COLOR_CODES[Math.random() * COLOR_CODES.length | 0]; }
+        let lastColor;
+        function randomColor(options) {
+            const notSame = options && options.notSame;
+            const notColor = options && options.notColor;
+            const limitWhite = options && options.limitWhite;
+            let color = randomColorSimple();
+            if (limitWhite && color === COLOR.White && Math.random() < 0.6) { color = randomColorSimple(); }
+            if (notSame) { while (color === lastColor) { color = randomColorSimple(); } }
+            else if (notColor) { while (color === notColor) { color = randomColorSimple(); } }
+            lastColor = color;
+            return color;
+        }
+        function whiteOrGold() { return Math.random() < 0.5 ? COLOR.Gold : COLOR.White; }
+        function makePistilColor(shellColor) { return (shellColor === COLOR.White || shellColor === COLOR.Gold) ? randomColor({ notColor: shellColor }) : whiteOrGold(); }
+
+        const crysanthemumShell = (size=1) => {
+            const glitter = Math.random() < 0.25;
+            const singleColor = Math.random() < 0.72;
+            const color = singleColor ? randomColor({ limitWhite: true }) : [randomColor(), randomColor({ notSame: true })];
+            const pistil = singleColor && Math.random() < 0.42;
+            const pistilColor = pistil && makePistilColor(color);
+            const secondColor = singleColor && (Math.random() < 0.2 || color === COLOR.White) ? pistilColor || randomColor({ notColor: color, limitWhite: true }) : null;
+            const streamers = !pistil && color !== COLOR.White && Math.random() < 0.42;
+            let starDensity = glitter ? 1.1 : 1.25;
+            if (isLowQuality) starDensity *= 0.8;
+            if (isHighQuality) starDensity = 1.2;
+            return { shellSize: size, spreadSize: 300 + size * 100, starLife: 900 + size * 200, starDensity, color, secondColor, glitter: glitter ? 'light' : '', glitterColor: whiteOrGold(), pistil, pistilColor, streamers };
+        };
+        const ghostShell = (size=1) => {
+            const shell = crysanthemumShell(size);
+            shell.starLife *= 1.5;
+            let ghostColor = randomColor({ notColor: COLOR.White });
+            shell.streamers = true;
+            const pistil = Math.random() < 0.42;
+            const pistilColor = pistil && makePistilColor(ghostColor);
+            shell.color = INVISIBLE; shell.secondColor = ghostColor; shell.glitter = '';
+            return shell;
+        };
+        const strobeShell = (size=1) => {
+            const color = randomColor({ limitWhite: true });
+            return { shellSize: size, spreadSize: 280 + size * 92, starLife: 1100 + size * 200, starLifeVariation: 0.40, starDensity: 1.1, color, glitter: 'light', glitterColor: COLOR.White, strobe: true, strobeColor: Math.random() < 0.5 ? COLOR.White : null, pistil: Math.random() < 0.5, pistilColor: makePistilColor(color) };
+        };
+        const palmShell = (size=1) => {
+            const color = randomColor();
+            const thick = Math.random() < 0.5;
+            return { shellSize: size, color, spreadSize: 250 + size * 75, starDensity: thick ? 0.15 : 0.4, starLife: 1800 + size * 200, glitter: thick ? 'thick' : 'heavy' };
+        };
+        const ringShell = (size=1) => {
+            const color = randomColor();
+            const pistil = Math.random() < 0.75;
+            return { shellSize: size, ring: true, color, spreadSize: 300 + size * 100, starLife: 900 + size * 200, starCount: 2.2 * PI_2 * (size+1), pistil, pistilColor: makePistilColor(color), glitter: !pistil ? 'light' : '', glitterColor: color === COLOR.Gold ? COLOR.Gold : COLOR.White, streamers: Math.random() < 0.3 };
+        };
+        const crossetteShell = (size=1) => {
+            const color = randomColor({ limitWhite: true });
+            return { shellSize: size, spreadSize: 300 + size * 100, starLife: 750 + size * 160, starLifeVariation: 0.4, starDensity: 0.85, color, crossette: true, pistil: Math.random() < 0.5, pistilColor: makePistilColor(color) };
+        };
+        const floralShell = (size=1) => ({ shellSize: size, spreadSize: 300 + size * 120, starDensity: 0.12, starLife: 500 + size * 50, starLifeVariation: 0.5, color: Math.random() < 0.65 ? 'random' : (Math.random() < 0.15 ? randomColor() : [randomColor(), randomColor({ notSame: true })]) });
+        const fallingLeavesShell = (size=1) => ({ shellSize: size, color: INVISIBLE, spreadSize: 300 + size * 120, starDensity: 0.12, starLife: 500 + size * 50, starLifeVariation: 0.5, glitter: 'medium', glitterColor: COLOR.Gold, fallingLeaves: true });
+        const willowShell = (size=1) => ({ shellSize: size, spreadSize: 300 + size * 100, starDensity: 0.6, starLife: 3000 + size * 300, glitter: 'willow', glitterColor: COLOR.Gold, color: INVISIBLE });
+        const crackleShell = (size=1) => {
+            const color = Math.random() < 0.75 ? COLOR.Gold : randomColor();
+            return { shellSize: size, spreadSize: 380 + size * 75, starDensity: isLowQuality ? 0.65 : 1, starLife: 600 + size * 100, starLifeVariation: 0.32, glitter: 'light', glitterColor: COLOR.Gold, color, crackle: true, pistil: Math.random() < 0.65, pistilColor: makePistilColor(color) };
+        };
+        const horsetailShell = (size=1) => {
+            const color = randomColor();
+            return { shellSize: size, horsetail: true, color, spreadSize: 250 + size * 38, starDensity: 0.9, starLife: 2500 + size * 300, glitter: 'medium', glitterColor: Math.random() < 0.5 ? whiteOrGold() : color, strobe: color === COLOR.White };
+        };
+
+        function randomShellName() { return Math.random() < 0.5 ? 'Crysanthemum' : ['Crackle', 'Crossette', 'Ghost', 'Horse Tail', 'Palm', 'Ring', 'Strobe', 'Willow'][(Math.random() * 7) | 0]; }
+        function randomShell(size) { if (IS_HEADER) return randomFastShell()(size); return shellTypes[randomShellName()](size); }
+        function shellFromConfig(size) { return shellTypes[shellNameSelector()](size); }
+        const fastShellBlacklist = ['Falling Leaves', 'Floral', 'Willow'];
+        function randomFastShell() {
+            const isRandom = shellNameSelector() === 'Random';
+            let shellName = isRandom ? randomShellName() : shellNameSelector();
+            if (isRandom) { while (fastShellBlacklist.includes(shellName)) { shellName = randomShellName(); } }
+            return shellTypes[shellName];
+        }
+        const shellTypes = { 'Random': randomShell, 'Crackle': crackleShell, 'Crossette': crossetteShell, 'Crysanthemum': crysanthemumShell, 'Falling Leaves': fallingLeavesShell, 'Floral': floralShell, 'Ghost': ghostShell, 'Horse Tail': horsetailShell, 'Palm': palmShell, 'Ring': ringShell, 'Strobe': strobeShell, 'Willow': willowShell };
+        const shellNames = Object.keys(shellTypes);
+
+        function init() {
+            document.querySelector('.loading-init').remove();
+            document.querySelector('.stage-container').classList.remove('remove');
+            togglePause(false);
+            configDidUpdate();
+            // 修改1：将自动发射延迟设为0，修复开头黑屏过长
+            if (store.state.config.autoLaunch) {
+                autoLaunchTime = 0; 
+            }
+        }
+
+        function fitShellPositionInBoundsH(position) { const edge = 0.18; return (1 - edge*2) * position + edge; }
+        function fitShellPositionInBoundsV(position) { return position * 0.75; }
+        function getRandomShellPositionH() { return fitShellPositionInBoundsH(Math.random()); }
+        function getRandomShellPositionV() { return fitShellPositionInBoundsV(Math.random()); }
+        function getRandomShellSize() {
+            const baseSize = shellSizeSelector();
+            const maxVariance = Math.min(2.5, baseSize);
+            const variance = Math.random() * maxVariance;
+            const size = baseSize - variance;
+            const height = maxVariance === 0 ? Math.random() : 1 - (variance / maxVariance);
+            const centerOffset = Math.random() * (1 - height * 0.65) * 0.5;
+            const x = Math.random() < 0.5 ? 0.5 - centerOffset : 0.5 + centerOffset;
+            return { size, x: fitShellPositionInBoundsH(x), height: fitShellPositionInBoundsV(height) };
+        }
+        function launchShellFromConfig(event) {
+            const shell = new Shell(shellFromConfig(shellSizeSelector()));
+            const w = mainStage.width; const h = mainStage.height;
+            shell.launch(event ? event.x / w : getRandomShellPositionH(), event ? 1 - event.y / h : getRandomShellPositionV());
+        }
+
+        function seqMultiRandom(count = 3) {
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const size = getRandomShellSize();
+                    const shell = new Shell(shellFromConfig(size.size));
+                    shell.launch(size.x, size.height);
+                }, i * 100);
+            }
+            return 1200 + Math.random() * 600;
+        }
+        function seqDenseBarrage() {
+            const count = 8 + Math.floor(Math.random() * 4);
+            const positions = [];
+            for (let i = 0; i < count; i++) { positions.push({ x: Math.random() * 0.6 + 0.2, y: Math.random() * 0.4 + 0.3 }); }
+            positions.forEach((pos, index) => { setTimeout(() => { const shell = new Shell(shellFromConfig(shellSizeSelector())); shell.launch(pos.x, pos.y); }, index * 50); });
+            return 1500 + Math.random() * 300;
+        }
+        function seqSymmetricBurst() {
+            const count = 5; const centerX = 0.5; const centerY = 0.6;
+            const centerShell = new Shell(shellFromConfig(shellSizeSelector()));
+            centerShell.launch(centerX, centerY);
+            setTimeout(() => {
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => {
+                        const angle = (i / count) * PI_2;
+                        const distance = 0.2 + Math.random() * 0.1;
+                        const x = centerX + Math.sin(angle) * distance;
+                        const y = centerY + Math.cos(angle) * distance * 0.7;
+                        if (x > 0.1 && x < 0.9 && y > 0.1 && y < 0.9) { const shell = new Shell(shellFromConfig(Math.max(0, shellSizeSelector() - 1))); shell.launch(x, y); }
+                    }, i * 80);
+                }
+            }, 200);
+            return 1800;
+        }
+
+        let isFirstSeq = true;
+        let sequenceCounter = 0;
+        function startSequence() {
+            // 修改：确保首次发射立刻执行，不等待
+            if (isFirstSeq) {
+                isFirstSeq = false;
+                const count = 5;
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => {
+                        const shell = new Shell(crysanthemumShell(shellSizeSelector()));
+                        shell.launch(0.2 + (i / (count - 1)) * 0.6, 0.4 + Math.random() * 0.2); // 均匀分布X轴，避免堆叠
+                    }, i * 100);
+                }
+                return 1200; // 缩短首次间隔
+            }
+            sequenceCounter++;
+            if (sequenceCounter % 5 === 0) return seqDenseBarrage();
+            if (sequenceCounter % 3 === 0) return seqSymmetricBurst();
+            const randomCount = 3 + Math.floor(Math.random() * 3);
+            return seqMultiRandom(randomCount);
+        }
+
+        function handleResize() {
+            const w = window.innerWidth; const h = window.innerHeight;
+            const containerW = Math.min(w, MAX_WIDTH);
+            const containerH = w <= 420 ? h : Math.min(h, MAX_HEIGHT);
+            document.querySelector('.stage-container').style.width = containerW + 'px';
+            document.querySelector('.stage-container').style.height = containerH + 'px';
+            stages.forEach(stage => stage.resize(containerW, containerH));
+            const scaleFactor = scaleFactorSelector();
+            stageW = containerW / scaleFactor;
+            stageH = containerH / scaleFactor;
+        }
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        let currentFrame = 0;
+        let speedBarOpacity = 0;
+        let autoLaunchTime = 0;
+
+        function updateGlobals(timeStep, lag) {
+            currentFrame++;
+            if (!isUpdatingSpeed) { speedBarOpacity -= lag / 30; if (speedBarOpacity < 0) speedBarOpacity = 0; }
+            if (store.state.config.autoLaunch) {
+                autoLaunchTime -= timeStep;
+                if (autoLaunchTime <= 0) { autoLaunchTime = startSequence() * 0.5; }
+            }
+        }
+
+        let activePointerCount = 0;
+        let isUpdatingSpeed = false;
+
+        function handlePointerStart(event) {
+            activePointerCount++;
+            if (!isRunning()) return;
+            if (event.onCanvas) {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const shell = new Shell(shellFromConfig(shellSizeSelector()));
+                        const w = mainStage.width; const h = mainStage.height;
+                        const offsetX = (Math.random() - 0.5) * 0.2;
+                        const offsetY = (Math.random() - 0.5) * 0.1;
+                        shell.launch(Math.max(0.1, Math.min(0.9, (event.x / w) + offsetX)), Math.max(0.1, Math.min(0.9, (1 - event.y / h) + offsetY)));
+                    }, i * 100);
+                }
+            }
+        }
+        function handlePointerEnd(event) { activePointerCount--; isUpdatingSpeed = false; }
+        mainStage.addEventListener('pointerstart', handlePointerStart);
+        mainStage.addEventListener('pointerend', handlePointerEnd);
+
+        function update(frameTime, lag) {
+            if (!isRunning()) return;
+            const width = stageW; const height = stageH; const timeStep = frameTime * simSpeed; const speed = simSpeed * lag;
+            updateGlobals(timeStep, lag);
+            const starDrag = 1 - (1 - Star.airDrag) * speed;
+            const starDragHeavy = 1 - (1 - Star.airDragHeavy) * speed;
+            const sparkDrag = 1 - (1 - Spark.airDrag) * speed;
+            const gAcc = timeStep / 1000 * GRAVITY;
+            COLOR_CODES_W_INVIS.forEach(color => {
+                const stars = Star.active[color];
+                for (let i=stars.length-1; i>=0; i=i-1) {
+                    const star = stars[i];
+                    if (star.updateFrame === currentFrame) continue;
+                    star.updateFrame = currentFrame;
+                    star.life -= timeStep;
+                    if (star.life <= 0) { stars.splice(i, 1); Star.returnInstance(star); } else {
+                        const burnRate = Math.pow(star.life / star.fullLife, 0.5);
+                        const burnRateInverse = 1 - burnRate;
+                        star.prevX = star.x; star.prevY = star.y;
+                        star.x += star.speedX * speed; star.y += star.speedY * speed;
+                        if (!star.heavy) { star.speedX *= starDrag; star.speedY *= starDrag; } else { star.speedX *= starDragHeavy; star.speedY *= starDragHeavy; }
+                        star.speedY += gAcc;
+                        if (star.spinRadius) { star.spinAngle += star.spinSpeed * speed; star.x += Math.sin(star.spinAngle) * star.spinRadius * speed; star.y += Math.cos(star.spinAngle) * star.spinRadius * speed; }
+                        if (star.sparkFreq) {
+                            star.sparkTimer -= timeStep;
+                            while (star.sparkTimer < 0) {
+                                star.sparkTimer += star.sparkFreq * 0.75 + star.sparkFreq * burnRateInverse * 4;
+                                Spark.add(star.x, star.y, star.sparkColor, Math.random() * PI_2, Math.random() * star.sparkSpeed * burnRate, star.sparkLife * 0.8 + Math.random() * star.sparkLifeVariation * star.sparkLife);
+                            }
+                        }
+                        if (star.life < star.transitionTime) {
+                            if (star.secondColor && !star.colorChanged) {
+                                star.colorChanged = true; star.color = star.secondColor; stars.splice(i, 1); Star.active[star.secondColor].push(star);
+                                if (star.secondColor === INVISIBLE) { star.sparkFreq = 0; }
+                            }
+                            if (star.strobe) { star.visible = Math.floor(star.life / star.strobeFreq) % 3 === 0; }
+                        }
+                    }
+                }
+                const sparks = Spark.active[color];
+                for (let i=sparks.length-1; i>=0; i=i-1) {
+                    const spark = sparks[i];
+                    spark.life -= timeStep;
+                    if (spark.life <= 0) { sparks.splice(i, 1); Spark.returnInstance(spark); } else {
+                        spark.prevX = spark.x; spark.prevY = spark.y;
+                        spark.x += spark.speedX * speed; spark.y += spark.speedY * speed;
+                        spark.speedX *= sparkDrag; spark.speedY *= sparkDrag; spark.speedY += gAcc;
+                    }
+                }
+            });
+            render(speed);
+        }
+
+        function render(speed) {
+            const { dpr } = mainStage; const width = stageW; const height = stageH; const trailsCtx = trailsStage.ctx; const mainCtx = mainStage.ctx;
+            if (skyLightingSelector() !== SKY_LIGHT_NONE) { colorSky(speed); }
+            const scaleFactor = scaleFactorSelector();
+            trailsCtx.scale(dpr * scaleFactor, dpr * scaleFactor); mainCtx.scale(dpr * scaleFactor, dpr * scaleFactor);
+            trailsCtx.globalCompositeOperation = 'source-over';
+            trailsCtx.fillStyle = `rgba(0, 0, 0, ${store.state.config.longExposure ? 0.0025 : 0.175 * speed})`;
+            trailsCtx.fillRect(0, 0, width, height);
+            mainCtx.clearRect(0, 0, width, height);
+            while (BurstFlash.active.length) {
+                const bf = BurstFlash.active.pop();
+                const burstGradient = trailsCtx.createRadialGradient(bf.x, bf.y, 0, bf.x, bf.y, bf.radius);
+                burstGradient.addColorStop(0.024, 'rgba(255, 255, 255, 1)');
+                burstGradient.addColorStop(0.125, 'rgba(255, 160, 20, 0.2)');
+                burstGradient.addColorStop(0.32, 'rgba(255, 140, 20, 0.11)');
+                burstGradient.addColorStop(1, 'rgba(255, 120, 20, 0)');
+                trailsCtx.fillStyle = burstGradient; trailsCtx.fillRect(bf.x - bf.radius, bf.y - bf.radius, bf.radius * 2, bf.radius * 2);
+                BurstFlash.returnInstance(bf);
+            }
+            trailsCtx.globalCompositeOperation = 'lighten';
+            trailsCtx.lineWidth = Star.drawWidth; trailsCtx.lineCap = isLowQuality ? 'square' : 'round';
+            mainCtx.strokeStyle = '#fff'; mainCtx.lineWidth = 1; mainCtx.beginPath();
+            COLOR_CODES.forEach(color => {
+                const stars = Star.active[color];
+                trailsCtx.strokeStyle = color; trailsCtx.beginPath();
+                stars.forEach(star => {
+                    if (star.visible) {
+                        trailsCtx.moveTo(star.x, star.y); trailsCtx.lineTo(star.prevX, star.prevY);
+                        mainCtx.moveTo(star.x, star.y); mainCtx.lineTo(star.x - star.speedX * 1.6, star.y - star.speedY * 1.6);
+                    }
+                });
+                trailsCtx.stroke();
+            });
+            mainCtx.stroke();
+            trailsCtx.lineWidth = Spark.drawWidth; trailsCtx.lineCap = 'butt';
+            COLOR_CODES.forEach(color => {
+                const sparks = Spark.active[color];
+                trailsCtx.strokeStyle = color; trailsCtx.beginPath();
+                sparks.forEach(spark => { trailsCtx.moveTo(spark.x, spark.y); trailsCtx.lineTo(spark.prevX, spark.prevY); });
+                trailsCtx.stroke();
+            });
+            trailsCtx.setTransform(1, 0, 0, 1, 0, 0); mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+
+        const currentSkyColor = { r: 0, g: 0, b: 0 };
+        const targetSkyColor = { r: 0, g: 0, b: 0 };
+        function colorSky(speed) {
+            const maxSkySaturation = skyLightingSelector() * 15;
+            const maxStarCount = 500;
+            let totalStarCount = 0;
+            targetSkyColor.r = 0; targetSkyColor.g = 0; targetSkyColor.b = 0;
+            COLOR_CODES.forEach(color => {
+                const tuple = COLOR_TUPLES[color];
+                const count = Star.active[color].length;
+                totalStarCount += count;
+                targetSkyColor.r += tuple.r * count; targetSkyColor.g += tuple.g * count; targetSkyColor.b += tuple.b * count;
+            });
+            const intensity = Math.pow(Math.min(1, totalStarCount / maxStarCount), 0.3);
+            const maxColorComponent = Math.max(1, targetSkyColor.r, targetSkyColor.g, targetSkyColor.b);
+            targetSkyColor.r = targetSkyColor.r / maxColorComponent * maxSkySaturation * intensity;
+            targetSkyColor.g = targetSkyColor.g / maxColorComponent * maxSkySaturation * intensity;
+            targetSkyColor.b = targetSkyColor.b / maxColorComponent * maxSkySaturation * intensity;
+            const colorChange = 10;
+            currentSkyColor.r += (targetSkyColor.r - currentSkyColor.r) / colorChange * speed;
+            currentSkyColor.g += (targetSkyColor.g - currentSkyColor.g) / colorChange * speed;
+            currentSkyColor.b += (targetSkyColor.b - currentSkyColor.b) / colorChange * speed;
+            document.querySelector('.canvas-container').style.backgroundColor = `rgb(${currentSkyColor.r | 0}, ${currentSkyColor.g | 0}, ${currentSkyColor.b | 0})`;
+        }
+
+        mainStage.addEventListener('ticker', update);
+
+        function createParticleArc(start, arcLength, count, randomness, particleFactory) {
+            const angleDelta = arcLength / count;
+            const end = start + arcLength - (angleDelta * 0.5);
+            if (end > start) { for (let angle=start; angle<end; angle=angle+angleDelta) { particleFactory(angle + Math.random() * angleDelta * randomness); } }
+            else { for (let angle=start; angle>end; angle=angle+angleDelta) { particleFactory(angle + Math.random() * angleDelta * randomness); } }
+        }
+        function createBurst(count, particleFactory, startAngle=0, arcLength=PI_2) {
+            const R = 0.5 * Math.sqrt(count/Math.PI); const C = 2 * R * Math.PI; const C_HALF = C / 2;
+            for (let i=0; i<=C_HALF; i++) {
+                const ringAngle = i / C_HALF * PI_HALF; const ringSize = Math.cos(ringAngle);
+                const partsPerFullRing = C * ringSize; const partsPerArc = partsPerFullRing * (arcLength / PI_2);
+                const angleInc = PI_2 / partsPerFullRing; const angleOffset = Math.random() * angleInc + startAngle; const maxRandomAngleOffset = angleInc * 0.33;
+                for (let i=0; i<partsPerArc; i++) {
+                    const randomAngleOffset = Math.random() * maxRandomAngleOffset;
+                    let angle = angleInc * i + angleOffset + randomAngleOffset;
+                    particleFactory(angle, ringSize);
+                }
+            }
+        }
+        function crossetteEffect(star) {
+            const startAngle = Math.random() * PI_HALF;
+            createParticleArc(startAngle, PI_2, 4, 0.5, (angle) => { Star.add(star.x, star.y, star.color, angle, Math.random() * 0.6 + 0.75, 600); });
+        }
+        function floralEffect(star) {
+            const count = 12 + 6 * quality;
+            createBurst(count, (angle, speedMult) => { Star.add(star.x, star.y, star.color, angle, speedMult * 2.4, 1000 + Math.random() * 300, star.speedX, star.speedY); });
+            BurstFlash.add(star.x, star.y, 46);
+        }
+        function fallingLeavesEffect(star) {
+            createBurst(7, (angle, speedMult) => {
+                const newStar = Star.add(star.x, star.y, INVISIBLE, angle, speedMult * 2.4, 2400 + Math.random() * 600, star.speedX, star.speedY);
+                newStar.sparkColor = COLOR.Gold; newStar.sparkFreq = 144 / quality; newStar.sparkSpeed = 0.28; newStar.sparkLife = 750; newStar.sparkLifeVariation = 3.2;
+            });
+            BurstFlash.add(star.x, star.y, 46);
+        }
+        function crackleEffect(star) {
+            const count = isHighQuality ? 32 : 16;
+            createParticleArc(0, PI_2, count, 1.8, (angle) => { Spark.add(star.x, star.y, COLOR.Gold, angle, Math.pow(Math.random(), 0.45) * 2.4, 300 + Math.random() * 200); });
+        }
+
+        class Shell {
+            constructor(options) {
+                Object.assign(this, options);
+                this.starLifeVariation = options.starLifeVariation || 0.125;
+                this.color = options.color || randomColor();
+                this.glitterColor = options.glitterColor || this.color;
+                if (!this.starCount) { const density = options.starDensity || 1; const scaledSize = this.spreadSize / 54; this.starCount = Math.max(6, scaledSize * scaledSize * density); }
+            }
+            launch(position, launchHeight) {
+                const width = stageW; const height = stageH; const hpad = 60; const vpad = 50; const minHeightPercent = 0.45; const minHeight = height - height * minHeightPercent;
+                const launchX = position * (width - hpad * 2) + hpad; const launchY = height;
+                const burstY = minHeight - (launchHeight * (minHeight - vpad));
+                const launchDistance = launchY - burstY; const launchVelocity = Math.pow(launchDistance * 0.04, 0.64);
+                const comet = this.comet = Star.add(launchX, launchY, typeof this.color === 'string' && this.color !== 'random' ? this.color : COLOR.White, Math.PI, launchVelocity * (this.horsetail ? 1.2 : 1), launchVelocity * (this.horsetail ? 100 : 400));
+                comet.heavy = true; comet.spinRadius = MyMath.random(0.32, 0.85); comet.sparkFreq = 32 / quality;
+                if (isHighQuality) comet.sparkFreq = 8;
+                comet.sparkLife = 320; comet.sparkLifeVariation = 3;
+                if (this.glitter === 'willow' || this.fallingLeaves) { comet.sparkFreq = 20 / quality; comet.sparkSpeed = 0.5; comet.sparkLife = 500; }
+                if (this.color === INVISIBLE) { comet.sparkColor = COLOR.Gold; }
+                if (Math.random() > 0.4 && !this.horsetail) { comet.secondColor = INVISIBLE; comet.transitionTime = Math.pow(Math.random(), 1.5) * 700 + 500; }
+                comet.onDeath = comet => this.burst(comet.x, comet.y);
+            }
+            burst(x, y) {
+                const speed = this.spreadSize / 96;
+                let color, onDeath, sparkFreq, sparkSpeed, sparkLife;
+                let sparkLifeVariation = 0.25;
+                if (this.crossette) onDeath = crossetteEffect; if (this.crackle) onDeath = crackleEffect; if (this.floral) onDeath = floralEffect; if (this.fallingLeaves) onDeath = fallingLeavesEffect;
+                if (this.glitter === 'light') { sparkFreq = 400; sparkSpeed = 0.3; sparkLife = 300; sparkLifeVariation = 2; }
+                else if (this.glitter === 'medium') { sparkFreq = 200; sparkSpeed = 0.44; sparkLife = 700; sparkLifeVariation = 2; }
+                else if (this.glitter === 'heavy') { sparkFreq = 80; sparkSpeed = 0.8; sparkLife = 1400; sparkLifeVariation = 2; }
+                else if (this.glitter === 'thick') { sparkFreq = 16; sparkSpeed = isHighQuality ? 1.65 : 1.5; sparkLife = 1400; sparkLifeVariation = 3; }
+                else if (this.glitter === 'streamer') { sparkFreq = 32; sparkSpeed = 1.05; sparkLife = 620; sparkLifeVariation = 2; }
+                else if (this.glitter === 'willow') { sparkFreq = 120; sparkSpeed = 0.34; sparkLife = 1400; sparkLifeVariation = 3.8; }
+                sparkFreq = sparkFreq / quality;
+                let firstStar = true;
+                const starFactory = (angle, speedMult) => {
+                    const standardInitialSpeed = this.spreadSize / 1800;
+                    const star = Star.add(x, y, color || randomColor(), angle, speedMult * speed, this.starLife + Math.random() * this.starLife * this.starLifeVariation, this.horsetail ? this.comet && this.comet.speedX : 0, this.horsetail ? this.comet && this.comet.speedY : -standardInitialSpeed);
+                    if (this.secondColor) { star.transitionTime = this.starLife * (Math.random() * 0.05 + 0.32); star.secondColor = this.secondColor; }
+                    if (this.strobe) { star.transitionTime = this.starLife * (Math.random() * 0.08 + 0.46); star.strobe = true; star.strobeFreq = Math.random() * 20 + 40; if (this.strobeColor) { star.secondColor = this.strobeColor; } }
+                    star.onDeath = onDeath;
+                    if (this.glitter) { star.sparkFreq = sparkFreq; star.sparkSpeed = sparkSpeed; star.sparkLife = sparkLife; star.sparkLifeVariation = sparkLifeVariation; star.sparkColor = this.glitterColor; star.sparkTimer = Math.random() * star.sparkFreq; }
+                };
+                if (typeof this.color === 'string') {
+                    if (this.color === 'random') { color = null; } else { color = this.color; }
+                    if (this.ring) {
+                        const ringStartAngle = Math.random() * Math.PI; const ringSquash = Math.pow(Math.random(), 2) * 0.85 + 0.15;
+                        createParticleArc(0, PI_2, this.starCount, 0, angle => {
+                            const initSpeedX = Math.sin(angle) * speed * ringSquash; const initSpeedY = Math.cos(angle) * speed;
+                            const newSpeed = MyMath.pointDist(0, 0, initSpeedX, initSpeedY); const newAngle = MyMath.pointAngle(0, 0, initSpeedX, initSpeedY) + ringStartAngle;
+                            const star = Star.add(x, y, color, newAngle, newSpeed, this.starLife + Math.random() * this.starLife * this.starLifeVariation);
+                            if (this.glitter) { star.sparkFreq = sparkFreq; star.sparkSpeed = sparkSpeed; star.sparkLife = sparkLife; star.sparkLifeVariation = sparkLifeVariation; star.sparkColor = this.glitterColor; star.sparkTimer = Math.random() * star.sparkFreq; }
+                        });
+                    } else { createBurst(this.starCount, starFactory); }
+                } else if (Array.isArray(this.color)) {
+                    if (Math.random() < 0.5) {
+                        const start = Math.random() * Math.PI; const start2 = start + Math.PI; const arc = Math.PI;
+                        color = this.color[0]; createBurst(this.starCount, starFactory, start, arc);
+                        color = this.color[1]; createBurst(this.starCount, starFactory, start2, arc);
+                    } else {
+                        color = this.color[0]; createBurst(this.starCount / 2, starFactory);
+                        color = this.color[1]; createBurst(this.starCount / 2, starFactory);
+                    }
+                } else { throw new Error('Invalid shell color. Expected string or array of strings, but got: ' + this.color); }
+                if (this.pistil) { const innerShell = new Shell({ spreadSize: this.spreadSize * 0.5, starLife: this.starLife * 0.6, starLifeVariation: this.starLifeVariation, starDensity: 1.4, color: this.pistilColor, glitter: 'light', glitterColor: this.pistilColor === COLOR.Gold ? COLOR.Gold : COLOR.White }); innerShell.burst(x, y); }
+                if (this.streamers) { const innerShell = new Shell({ spreadSize: this.spreadSize * 0.9, starLife: this.starLife * 0.8, starLifeVariation: this.starLifeVariation, starCount: Math.floor(Math.max(6, this.spreadSize / 45)), color: COLOR.White, glitter: 'streamer' }); innerShell.burst(x, y); }
+                BurstFlash.add(x, y, this.spreadSize / 4);
+            }
+        }
+
+        const BurstFlash = {
+            active: [], _pool: [],
+            _new() { return {} },
+            add(x, y, radius) { const instance = this._pool.pop() || this._new(); instance.x = x; instance.y = y; instance.radius = radius; this.active.push(instance); return instance; },
+            returnInstance(instance) { this._pool.push(instance); }
+        };
+
+        function createParticleCollection() { const collection = {}; COLOR_CODES_W_INVIS.forEach(color => { collection[color] = []; }); return collection; }
+        const Star = {
+            drawWidth: 3, airDrag: 0.98, airDragHeavy: 0.992, active: createParticleCollection(), _pool: [],
+            _new() { return {}; },
+            add(x, y, color, angle, speed, life, speedOffX, speedOffY) {
+                const instance = this._pool.pop() || this._new();
+                instance.visible = true; instance.heavy = false; instance.x = x; instance.y = y; instance.prevX = x; instance.prevY = y; instance.color = color; instance.speedX = Math.sin(angle) * speed + (speedOffX || 0); instance.speedY = Math.cos(angle) * speed + (speedOffY || 0); instance.life = life; instance.fullLife = life; instance.spinAngle = Math.random() * PI_2; instance.spinSpeed = 0.8; instance.spinRadius = 0; instance.sparkFreq = 0; instance.sparkSpeed = 1; instance.sparkTimer = 0; instance.sparkColor = color; instance.sparkLife = 750; instance.sparkLifeVariation = 0.25; instance.strobe = false;
+                this.active[color].push(instance); return instance;
+            },
+            returnInstance(instance) { instance.onDeath && instance.onDeath(instance); instance.onDeath = null; instance.secondColor = null; instance.transitionTime = 0; instance.colorChanged = false; this._pool.push(instance); }
+        };
+        const Spark = {
+            drawWidth: 0, airDrag: 0.9, active: createParticleCollection(), _pool: [],
+            _new() { return {}; },
+            add(x, y, color, angle, speed, life) { const instance = this._pool.pop() || this._new(); instance.x = x; instance.y = y; instance.prevX = x; instance.prevY = y; instance.color = color; instance.speedX = Math.sin(angle) * speed; instance.speedY = Math.cos(angle) * speed; instance.life = life; this.active[color].push(instance); return instance; },
+            returnInstance(instance) { this._pool.push(instance); }
+        };
+
+        function setLoadingStatus(status) { document.querySelector('.loading-init__status').textContent = status; }
+        
+        // 自动初始化，因为修改了 autoLaunchTime=0，所以背景会立即显示烟花
+        if (IS_HEADER) { init(); } else { setTimeout(() => { init(); }, 0); }
+    </script>
+    <script>
+      var S = {
+  init: function () {
+    S.Drawing.init('.canvas');
+    document.body.classList.add('body--ready');
+
+    // 修改后的祝福语
+    S.UI.simulate('|新年倒计时|#countdown 5||2026|祝考拉|烟火向星|所愿皆成|马踏春风|万事胜意|');
+
+    S.Drawing.loop(function () {
+      S.Shape.render();
+    });
+  }
+};
+
+S.Drawing = (function () {
+  var canvas,
+      context,
+      renderFn,
+      requestFrame = window.requestAnimationFrame ||
+                     window.webkitRequestAnimationFrame ||
+                     window.mozRequestAnimationFrame ||
+                     window.oRequestAnimationFrame ||
+                     window.msRequestAnimationFrame ||
+                     function(callback) {
+                       window.setTimeout(callback, 1000 / 60);
+                     };
+
+  return {
+    init: function (el) {
+      canvas = document.querySelector(el);
+      context = canvas.getContext('2d');
+      this.adjustCanvas();
+
+      window.addEventListener('resize', function (e) {
+        S.Drawing.adjustCanvas();
+      });
+    },
+
+    loop: function (fn) {
+      renderFn = !renderFn ? fn : renderFn;
+      this.clearFrame();
+      renderFn();
+      requestFrame.call(window, this.loop.bind(this));
+    },
+
+    adjustCanvas: function () {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    },
+
+    clearFrame: function () {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    },
+
+    getArea: function () {
+      return { w: canvas.width, h: canvas.height };
+    },
+
+    drawCircle: function (p, c) {
+      context.fillStyle = c.render();
+      context.beginPath();
+      context.arc(p.x, p.y, p.z, 0, 2 * Math.PI, true);
+      context.closePath();
+      context.fill();
+    }
+  };
+}());
+
+S.UI = (function () {
+  var interval,
+      currentAction,
+      sequence = [],
+      cmd = '#';
+
+  function getValue(value) {
+    return value && value.split(' ')[1];
+  }
+
+  function getAction(value) {
+    value = value && value.split(' ')[0];
+    return value && value[0] === cmd && value.substring(1);
+  }
+
+  function timedAction(fn, delay, max, reverse) {
+    clearInterval(interval);
+    currentAction = reverse ? max : 1;
+    fn(currentAction);
+
+    if (!max || (!reverse && currentAction < max) || (reverse && currentAction > 0)) {
+      interval = setInterval(function () {
+        currentAction = reverse ? currentAction - 1 : currentAction + 1;
+        fn(currentAction);
+
+        if ((!reverse && max && currentAction === max) || (reverse && currentAction === 0)) {
+          clearInterval(interval);
+        }
+      }, delay);
+    }
+  }
+
+  function reset() {
+    clearInterval(interval);
+    sequence = [];
+  }
+
+  function performAction(value) {
+    var action,
+        val,
+        current;
+
+    sequence = typeof(value) === 'object' ? value : sequence.concat(value.split('|'));
+
+    timedAction(function (index) {
+      current = sequence.shift();
+      action = getAction(current);
+      val = getValue(current);
+
+      switch (action) {
+        case 'countdown':
+          val = parseInt(val) || 10;
+          val = val > 0 ? val : 10;
+
+          timedAction(function (index) {
+            if (index === 0) {
+              if (sequence.length === 0) {
+                S.Shape.switchShape(S.ShapeBuilder.letter(''));
+                S.Shape.startFadeOut();
+              } else {
+                performAction(sequence);
+              }
+            } else {
+              S.Shape.switchShape(S.ShapeBuilder.letter(index), true);
+            }
+          }, 1000, val, true);
+          break;
+
+        default:
+          S.Shape.switchShape(S.ShapeBuilder.letter(current[0] === cmd ? 'What?' : current));
+          if (sequence.length === 0) {
+            S.Shape.startFadeOut();
+          }
+      }
+    }, 2000, sequence.length);
+  }
+
+  return {
+    simulate: function (action) {
+      performAction(action);
+    }
+  };
+}());
+
+S.Point = function (args) {
+  this.x = args.x;
+  this.y = args.y;
+  this.z = args.z;
+  this.a = args.a;
+  this.h = args.h;
+};
+
+S.Color = function (r, g, b, a) {
+  this.r = r;
+  this.g = g;
+  this.b = b;
+  this.a = a;
+};
+
+S.Color.prototype = {
+  render: function () {
+    return 'rgba(' + this.r + ',' + this.g + ',' + this.b + ',' + this.a + ')';
+  }
+};
+
+S.Dot = function (x, y) {
+  this.p = new S.Point({
+    x: x,
+    y: y,
+    z: 5,
+    a: 1,
+    h: 0
+  });
+
+  this.e = 0.07;
+  this.s = true;
+
+  this.c = new S.Color(255, 255, 255, this.p.a);
+
+  this.t = this.clone();
+  this.q = [];
+};
+
+S.Dot.prototype = {
+  clone: function () {
+    return new S.Point({
+      x: this.p.x,
+      y: this.p.y,
+      z: this.p.z,
+      a: this.p.a,
+      h: this.p.h
+    });
+  },
+
+  _draw: function () {
+    this.c.a = this.p.a;
+    S.Drawing.drawCircle(this.p, this.c);
+  },
+
+  _moveTowards: function (n) {
+    var details = this.distanceTo(n, true),
+        dx = details[0],
+        dy = details[1],
+        d = details[2],
+        e = this.e * d;
+
+    if (this.p.h === -1) {
+      this.p.x = n.x;
+      this.p.y = n.y;
+      return true;
+    }
+
+    if (d > 1) {
+      this.p.x -= ((dx / d) * e);
+      this.p.y -= ((dy / d) * e);
+    } else {
+      if (this.p.h > 0) {
+        this.p.h--;
+      } else {
+        return true;
+      }
+    }
+
+    return false;
+  },
+
+  _update: function () {
+    // 修改5：实现消散褪色效果
+    if (S.Shape.isFadingOut) {
+      // 随机漂浮
+      this.p.x += Math.random() * 4 - 2;
+      this.p.y += Math.random() * 4 - 2;
+      // 降低透明度
+      this.p.a = Math.max(0, this.p.a - 0.01);
+      // 当完全透明时，不需要再绘制（在render中控制）
+      return; 
+    }
+
+    if (this._moveTowards(this.t)) {
+      var p = this.q.shift();
+
+      if (p) {
+        this.t.x = p.x || this.p.x;
+        this.t.y = p.y || this.p.y;
+        this.t.z = p.z || this.p.z;
+        this.t.a = p.a || this.p.a;
+        this.p.h = p.h || 0;
+      } else {
+        if (this.s) {
+          this.p.x -= Math.sin(Math.random() * 3.142);
+          this.p.y -= Math.sin(Math.random() * 3.142);
+        } else {
+          this.move(new S.Point({
+            x: this.p.x + (Math.random() * 50) - 25,
+            y: this.p.y + (Math.random() * 50) - 25,
+          }));
+        }
+      }
+    }
+
+    if (!S.Shape.isFadingOut) {
+      var d = this.p.a - this.t.a;
+      this.p.a = Math.max(0.1, this.p.a - (d * 0.05));
+      d = this.p.z - this.t.z;
+      this.p.z = Math.max(1, this.p.z - (d * 0.05));
+    }
+  },
+
+  distanceTo: function (n, details) {
+    var dx = this.p.x - n.x,
+        dy = this.p.y - n.y,
+        d = Math.sqrt(dx * dx + dy * dy);
+
+    return details ? [dx, dy, d] : d;
+  },
+
+  move: function (p, avoidStatic) {
+    if (!avoidStatic || (avoidStatic && this.distanceTo(p) > 1)) {
+      this.q.push(p);
+    }
+  },
+
+  render: function () {
+    this._update();
+    if (this.p.a > 0) {
+      this._draw();
+    }
+  }
+};
+
+S.ShapeBuilder = (function () {
+  var gap = 13,
+      shapeCanvas = document.createElement('canvas'),
+      shapeContext = shapeCanvas.getContext('2d'),
+      fontSize = 500,
+      fontFamily = 'Avenir, Helvetica Neue, Helvetica, Arial, sans-serif';
+
+  function fit() {
+    shapeCanvas.width = Math.floor(window.innerWidth / gap) * gap;
+    shapeCanvas.height = Math.floor(window.innerHeight / gap) * gap;
+    shapeContext.fillStyle = 'red';
+    shapeContext.textBaseline = 'middle';
+    shapeContext.textAlign = 'center';
+  }
+
+  function processCanvas() {
+    var pixels = shapeContext.getImageData(0, 0, shapeCanvas.width, shapeCanvas.height).data,
+        dots = [],
+        x = 0,
+        y = 0,
+        fx = shapeCanvas.width,
+        fy = shapeCanvas.height,
+        w = 0,
+        h = 0;
+
+    for (var p = 0; p < pixels.length; p += (4 * gap)) {
+      if (pixels[p + 3] > 0) {
+        dots.push(new S.Point({
+          x: x,
+          y: y
+        }));
+
+        w = x > w ? x : w;
+        h = y > h ? y : h;
+        fx = x < fx ? x : fx;
+        fy = y < fy ? y : fy;
+      }
+
+      x += gap;
+
+      if (x >= shapeCanvas.width) {
+        x = 0;
+        y += gap;
+        p += gap * 4 * shapeCanvas.width;
+      }
+    }
+
+    return { dots: dots, w: w + fx, h: h + fy };
+  }
+
+  function setFontSize(s) {
+    shapeContext.font = 'bold ' + s + 'px ' + fontFamily;
+  }
+
+  function isNumber(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+  }
+
+  function init() {
+    fit();
+    window.addEventListener('resize', fit);
+  }
+
+  init();
+
+  return {
+    letter: function (l) {
+      var s = 0;
+
+      setFontSize(fontSize);
+      s = Math.min(fontSize,
+                  (shapeCanvas.width / shapeContext.measureText(l).width) * 0.8 * fontSize,
+                  (shapeCanvas.height / fontSize) * (isNumber(l) ? 1 : 0.45) * fontSize);
+      setFontSize(s);
+
+      shapeContext.clearRect(0, 0, shapeCanvas.width, shapeCanvas.height);
+      shapeContext.fillText(l, shapeCanvas.width / 2, shapeCanvas.height / 2);
+
+      return processCanvas();
+    }
+  };
+}());
+
+S.Shape = (function () {
+  var dots = [],
+      width = 0,
+      height = 0,
+      cx = 0,
+      cy = 0;
+
+  function compensate() {
+    var a = S.Drawing.getArea();
+    cx = a.w / 2 - width / 2;
+    cy = a.h / 2 - height / 2;
+  }
+
+  return {
+    isFadingOut: false, // 公开状态
+    startFadeOut: function() {
+      // 修改：不再清空dots，而是标记为正在消散
+      this.isFadingOut = true;
+    },
+    switchShape: function (n, fast) {
+      this.isFadingOut = false; // 切换新字时停止消散
+      var size,
+          a = S.Drawing.getArea();
+
+      width = n.w;
+      height = n.h;
+      compensate();
+
+      if (n.dots.length > dots.length) {
+        size = n.dots.length - dots.length;
+        for (var d = 1; d <= size; d++) {
+          dots.push(new S.Dot(a.w / 2, a.h / 2));
+        }
+      }
+
+      var d = 0,
+          i = 0;
+
+      while (n.dots.length > 0) {
+        i = Math.floor(Math.random() * n.dots.length);
+        dots[d].e = fast ? 0.25 : (dots[d].s ? 0.14 : 0.11);
+
+        if (dots[d].s) {
+          dots[d].move(new S.Point({ z: Math.random() * 20 + 10, a: Math.random(), h: 18 }));
+        } else {
+          dots[d].move(new S.Point({ z: Math.random() * 5 + 5, h: fast ? 18 : 30 }));
+        }
+
+        dots[d].s = true;
+        dots[d].move(new S.Point({
+          x: n.dots[i].x + cx,
+          y: n.dots[i].y + cy,
+          a: 1,
+          z: 5,
+          h: 0
+        }));
+
+        n.dots = n.dots.slice(0, i).concat(n.dots.slice(i + 1));
+        d++;
+      }
+
+      for (var i = d; i < dots.length; i++) {
+        if (dots[i].s) {
+          dots[i].move(new S.Point({ z: Math.random() * 20 + 10, a: Math.random(), h: 20 }));
+          dots[i].s = false;
+          dots[i].e = 0.04;
+          dots[i].move(new S.Point({
+            x: Math.random() * a.w,
+            y: Math.random() * a.h,
+            a: 0.3,
+            z: Math.random() * 4,
+            h: 0
+          }));
+        }
+      }
+    },
+    render: function () {
+      for (var d = 0; d < dots.length; d++) {
+        dots[d].render();
+      }
+    }
+  };
+}());
+
+// 修改6：全屏与开始按钮逻辑
+var startBtn = document.getElementById('start-btn');
+var fullScreenBtn = document.getElementById('fullscreen-btn');
+var overlay = document.getElementById('intro-overlay');
+
+fullScreenBtn.addEventListener('click', function() {
+    if (fscreen.fullscreenEnabled) {
+        fscreen.requestFullscreen(document.documentElement);
+        // 隐藏全屏按钮
+        fullScreenBtn.style.display = 'none';
+        // 激活开始按钮
+        startBtn.classList.add('active');
+        startBtn.textContent = "开启新年烟花";
+    } else {
+        alert("您的浏览器不支持全屏，请直接开始");
+        fullScreenBtn.style.display = 'none';
+        startBtn.classList.add('active');
+    }
+});
+
+startBtn.addEventListener('click', function() {
+    // 只有激活状态下才能点击
+    if (!startBtn.classList.contains('active')) return;
+
+    // 渐隐效果
+    overlay.style.opacity = '0';
+    // 延迟移除 DOM 并启动文字动画
+    setTimeout(function() {
+        overlay.style.display = 'none';
+        S.init();
+    }, 1200);
+});
+
+// 音乐自动播放逻辑
+window.addEventListener('DOMContentLoaded', function() {
+    var audio = document.getElementById('bgm');
+    audio.volume = 0.5; // 设置音量
+    
+    // 尝试直接播放（大部分浏览器会拦截）
+    var playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(_ => {
+            // 自动播放成功
+        })
+        .catch(error => {
+            // 自动播放被浏览器拦截
+            // 监听任意点击事件来触发播放（双重保险：用户点击页面任何地方都会开始播放）
+            var startAudio = function() {
+                audio.play();
+                document.removeEventListener('click', startAudio);
+                document.removeEventListener('touchstart', startAudio);
+            };
+            document.addEventListener('click', startAudio);
+            document.addEventListener('touchstart', startAudio);
+        });
+    }
+});
+
+    </script>
+</body>
+</html>
